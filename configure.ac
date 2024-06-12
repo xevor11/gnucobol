@@ -573,6 +573,23 @@ AC_DEFUN([AC_PROG_F77], [])
 AC_PROG_LN_S
 AC_PROG_INSTALL
 
+PRINT_VAR(JAVA_HOME)
+PRINT_VAR(JAVA)
+PRINT_VAR(JAVAC)
+PRINT_VAR(JAVAH)
+PRINT_VAR(JAR)
+PRINT_VAR(JNI_INCLUDES)
+
+AC_PATH_PROG(javahome,java, "/usr/bin")
+javahome=`dirname ${javahome}`
+javahome=`dirname ${javahome}`
+echo "JAVAHOME=${javahome}"
+for each in `ls ${javahome}/include` ;do
+  if [ test -d ${javahome}/include/${each} ] ;then
+     javaos=${each}
+  fi;
+done;
+
 AC_PROG_MAKE_SET
 AC_LIB_RPATH
 
@@ -585,6 +602,10 @@ dnl AC_CHECK_HEADERS([whcar.h malloc.h])
 # mandatory:
 AC_CHECK_HEADERS([sys/types.h signal.h stddef.h], [],
 	[AC_MSG_ERROR([mandatory header could not be found or included])])
+AC_CHECK_HEADERS([jni.h], [],
+  [AC_MSG_ERROR([jni.h is required but could not be found])])
+AC_CHECK_HEADERS([jni_md.h], [],
+  [AC_MSG_ERROR([jni_md.h is required but could not be found])])
 # optional:
 AC_CHECK_HEADERS([sys/time.h locale.h fcntl.h dlfcn.h stdint.h inttypes.h])
 

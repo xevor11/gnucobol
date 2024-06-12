@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2003-2012, 2014-2023 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
+   Copyright (C) 2024 Free Software Foundation, Inc.
+   Written by Vedant Tewari
 
    This file is part of GnuCOBOL.
 
@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-// For caching which is an optimization but can we internally implement it as well?
+/* For caching which is an optimization but can we internally implement it as well? */
 typedef struct {
     jclass cls;
     jmethodID mid;
@@ -32,11 +32,12 @@ typedef struct {
 MethodCache* cache = NULL;
 int cacheSize = 0;
 
-static JavaVM *jvm = NULL;    
-static JNIEnv* env = NULL; // pointer to native method interface
+static JavaVM *jvm = NULL;
+/* pointer to native method interface */  
+static JNIEnv* env = NULL;
 
 static void 
-cob_add_to_cache(jclass cls, jmethodID mid) {
+add_to_cache(jclass cls, jmethodID mid) {
     cacheSize++;
     cache = (MethodCache*)realloc(cache, sizeof(MethodCache) * cacheSize);
     cache[cacheSize - 1].cls = cls;
@@ -44,7 +45,7 @@ cob_add_to_cache(jclass cls, jmethodID mid) {
 }
 
 jmethodID 
-cob_get_from_cache(jclass cls, const char* methodName, const char* methodSig) {
+get_from_cache(jclass cls, const char* methodName, const char* methodSig) {
     for (int i = 0; i < cacheSize; i++) {
         if (cache[i].cls == cls) {
             return cache[i].mid;
@@ -55,15 +56,18 @@ cob_get_from_cache(jclass cls, const char* methodName, const char* methodSig) {
 
 static JNIEnv* 
 cob_create_vm() {
-    JavaVMInitArgs args; // JDK/JRE 6 VM initialization arguments
+    /* JDK/JRE 6 VM initialization arguments */
+    JavaVMInitArgs args;
     JavaVMOption* options = (JavaVMOption*)cob_malloc(sizeof(JavaVMOption) * 1);
     args.version = JNI_VERSION_1_6;
-    args.nOptions = 1; //inline
+    /* inline */
+    args.nOptions = 1;
     options[0].optionString = "-Djava.class.path=/usr/lib/java";
     args.options = &options;
     args.ignoreUnrecognized = 1;
     int rv;
-    rv = JNI_CreateJavaVM(jvm, (void**)&env, &args); // loading and initializing a Java VM, returning as JNI interface
+    /* loading and initializing a Java VM, returning as JNI interface */
+    rv = JNI_CreateJavaVM(jvm, (void**)&env, &args);
     if (rv < 0 || !env)
         return;
     else
@@ -83,13 +87,13 @@ cob_handle_error(JavaVM* jvm, char* methodSig) {
 
 static char* 
 cob_gen_method_sig(const char** paramType, int paramCount, const char** returnType) {
-    // (param_list) + return_type
+    /* (param_list) + return_type */
     int length = 2 + strlen(returnType);
     for(int i = 0; i < paramCount; i++) {
         length += strlen(paramType[i]);
     }
     
-    // internal malloc
+    /* internal malloc */
     char* sig = (char*)cob_malloc(length + 1);
     sig[0] = '(';
     int pos = 1;
@@ -103,10 +107,10 @@ cob_gen_method_sig(const char** paramType, int paramCount, const char** returnTy
 }
 
 static void
-cob_lookup_static_method(JNIEnv* env, JavaVM* jvm, const char *className, const char *methodName, const char *methodSig, const char *returnType, const char** paramTypes, int paramCount) {
+cob_lookup_static_method(JNIEnv* env, JavaVM* jvm, const char *className, const char *methodName, 
+const char *methodSig, const char *returnType, const char** paramTypes, int paramCount) {
     jclass cls = (*env)->FindClass(env, className);
     if (cls == NULL) {
-        printf("Class not found\n");
         (*jvm)->DestroyJavaVM(jvm);
         return;
     }
@@ -116,7 +120,6 @@ cob_lookup_static_method(JNIEnv* env, JavaVM* jvm, const char *className, const 
         char* signature = generate_method_signature(paramTypes, paramCount, returnType);
         mid = (*env)->GetStaticMethodID(env, cls, methodName, signature);
         if (mid == NULL) {
-            printf("Method not found\n");
             free(signature);
             (*jvm)->DestroyJavaVM(jvm);
             return;
@@ -124,11 +127,12 @@ cob_lookup_static_method(JNIEnv* env, JavaVM* jvm, const char *className, const 
         add_to_cache(cls, mid);
         free(signature);
     }
-    cob_call_static_method(env, jvm, cls, mid);
+
+    cob_static_method(env, jvm, cls, mid);
 }
 
 static void 
-cob_call_static_method(JNIEnv* env, JavaVM* jvm, jclass cls, jmethodID mid) {
+cob_static_method(JNIEnv* env, JavaVM* jvm, jclass cls, jmethodID mid) {
     (*env)->CallStaticVoidMethod(env, cls, mid, NULL);
 }
 
@@ -160,24 +164,26 @@ JNICALL cob_call_java_static_method(JNIEnv *env, JavaVM *jvm, const char *classN
     free(methodSig);
 }
 
-// extern "C"
-// JNIEXPORT jstring JNICALL Java_callJavaMemberFunction(JNIEnv *env, jobject obj, jobject javaObject, jstring input) {
-//     jclass cls = (*env)->GetObjectClass(env, javaObject);
-//     if (cls == NULL) {
-//         return NULL;
-//     }
+/*
+extern "C"
+JNIEXPORT jstring JNICALL Java_callJavaMemberFunction(JNIEnv *env, jobject obj, jobject javaObject, jstring input) {
+    jclass cls = (*env)->GetObjectClass(env, javaObject);
+    if (cls == NULL) {
+        return NULL;
+    }
 
-//     const char* paramTypes[] = {"Ljava/lang/String;"};
-//     char* methodSig = generate_method_signature(paramTypes, 1, "Ljava/lang/String;");
+    const char* paramTypes[] = {"Ljava/lang/String;"};
+    char* methodSig = generate_method_signature(paramTypes, 1, "Ljava/lang/String;");
 
-//     jmethodID mid = (*env)->GetMethodID(env, cls, "greet", methodSig);
-//     if (mid == NULL) {
-//         free(methodSig);
-//         return NULL;
-//     }
+    jmethodID mid = (*env)->GetMethodID(env, cls, "greet", methodSig);
+    if (mid == NULL) {
+        free(methodSig);
+        return NULL;
+    }
 
-//     jstring result = (jstring)(*env)->CallObjectMethod(env, javaObject, mid, input);
+    jstring result = (jstring)(*env)->CallObjectMethod(env, javaObject, mid, input);
 
-//     free(methodSig);
-//     return result;
-// }
+    free(methodSig);
+    return result;
+}
+*/

@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2007-2012, 2014-2023 Free Software Foundation, Inc.
-   Written by Roger While, Simon Sobisch, Ron Norman
+   Copyright (C) 2007-2012, 2014-2024 Free Software Foundation, Inc.
+   Written by Roger While, Simon Sobisch, Ron Norman, Vedant Tewari
 
    This file is part of GnuCOBOL.
 
@@ -493,6 +493,16 @@ COB_HIDDEN int		cob_check_env_false	(char*);
 COB_HIDDEN const char	*cob_get_last_exception_name	(void);
 COB_HIDDEN void		cob_parameter_check	(const char *, const int);
 COB_HIDDEN char*        cob_get_strerror (void);
+
+COB_HIDDEN JNIEnv*	cob_create_vm					();
+COB_HIDDEN void	cob_handle_error		(JavaVM* jvm, char* methodSig);
+COB_HIDDEN char* cob_gen_method_sig		(const char** paramType, int paramCount, const char** returnType);
+
+COB_HIDDEN void cob_lookup_static_method		(JNIEnv* env, JavaVM* jvm, const char *className, const char *methodName, 
+                              const char *methodSig, const char *returnType, const char** paramTypes, int paramCount);
+
+COB_HIDDEN void cob_static_method		(JNIEnv* env, JavaVM* jvm, jclass cls, jmethodID mid);
+COB_HIDDEN void cob_call_java_static_method		(JNIEnv *env, JavaVM *jvm, const char *className, const char *methodName, jobject obj, jstring input);
 
 enum cob_case_modifier {
 	CCM_NONE,
